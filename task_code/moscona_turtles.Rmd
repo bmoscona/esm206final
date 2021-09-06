@@ -1,0 +1,76 @@
+---
+title: "Turtles"
+author: "Benjamin Moscona"
+date: "9/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+Let's load required packages:
+```{r message=FALSE}
+library(tidyverse)
+library(readr)
+library(stringr)
+library(stargazer)
+library(knitr)
+```
+
+Let's read in the data and select columns we want:
+```{r message=FALSE}
+turtles <- read_csv("task_data/sharkbay_sea_turtles.csv")
+turtles1 <-  turtles %>%
+        select(species, length, width, burr) %>%
+        drop_na()
+```
+
+Let's create a visualization comparing carapace length and width.
+
+```{r echo = FALSE, message = FALSE}
+turtles1 %>% ggplot(aes(length, width, color = species)) + geom_point() + ggtitle("Sea Turtle Carapace Length vs. Width")
+```
+
+```{r message=FALSE}
+mod <- lm(width ~ length + species, data = turtles1) # linear model with width as the dependent variable
+summary(mod)
+```
+After evaluating an OLS model, I found that (for green and loggerhead sea turtles sampled) every 1 cm in length corresponds to an expected increase of 0.85cm in width. Loggerhead turtles are expected to be 1.50cm less wide than green turtles all else being equal. Both coefficient estimates are significant at the 0.05 level. 
+
+```{r echo = FALSE, message = FALSE}
+hist(turtles1$length[turtles1$species=="loggerhead"])
+
+hist(turtles1$length[turtles1$species=="green"])
+
+qqnorm(turtles1$length[turtles1$species=="loggerhead"], pch = 1, frame = FALSE)
+qqline(turtles1$length[turtles1$species=="loggerhead"], col = "steelblue", lwd = 2)
+
+qqnorm(turtles1$length[turtles1$species=="green"], pch = 1, frame = FALSE)
+qqline(turtles1$length[turtles1$species=="green"], col = "steelblue", lwd = 2)
+```
+The green turtle lengths are not normally distributed, so, we should not use a t-test for difference in means because this would violate the assumption of normality. We can use a Mann-Whitney U test here since we are comparing independent samples.
+
+```{r echo = FALSE, message = FALSE}
+wilcox.test(length ~ species, data = turtles1)
+```
+There is a difference between the length distributions of the green and loggerhead turtle populations, and we also expect their medians to differ (Mann-Whitney test is significant at the 0.05 level). In fact, the median length is higher for green turtles at 97cm than loggerheads at 93cm.
+
+```{r echo = FALSE, message = FALSE}
+cont_tbl <- turtles1 %>%
+        group_by(species, burr) %>%
+        summarize(count = n()) %>%
+        rename(barnacle = burr)
+
+kable(cont_tbl, type = "text", caption = "Burrowing barnacle count by turtle species")
+
+```
+
+I test whether there is a difference in proportions of burrowing barnacle presence/absence in green vs. loggerhead turtles using a two-tailed z-test.
+
+```{r echo = FALSE, message = FALSE}
+ttest <- prop.test(x = c(24, 29), n = c(188, 94))
+ttest
+```
+
+At the 0.05 significance level, we would reject the null hypothesis that there is no difference in proportions between loggerhead and green turtles burrowing barnacle presence. In our sample, we observe that there is a greater proportion of burrowing barnacle presence in loggerhead turtles (.31) than in green turtles (0.13). Given that our samples are independent and randomly selected, we are 95% confident that the population proportion of loggerhead turtles with burrowing barnacles is greater than in green turtles.

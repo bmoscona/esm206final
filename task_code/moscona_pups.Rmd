@@ -1,0 +1,58 @@
+---
+title: "Pups"
+author: "Benjamin Moscona"
+date: "9/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+Let's load required packages:
+```{r message=FALSE}
+library(tidyverse)
+library(readr)
+library(stringr)
+library(stargazer)
+```
+
+Let's read in the sea lions dataset:
+```{r message=FALSE}
+steller_pups <- read_csv("task_data/steller_pups.csv")
+```
+
+Let's summarize the mean values by site and year of counts:
+```{r message=FALSE}
+length(which(is.na(steller_pups$pupcount))) #check for NAs
+s_pups <- steller_pups %>%
+        group_by(sitename, Year) %>%
+        summarize(pupcount = mean(pupcount))
+```
+
+Let's only keep observations from sites Sugarloaf, Marmot, Forrester Complex, Chowiet, and Hazy.
+Let's only keep columns containing the site name, year, and pup count.
+Let's rename pup counts to steller_pups.
+```{r message=FALSE}
+sites <- c("Sugarloaf", "Marmot", "Forrester Complex", "Chowiet", "Hazy")
+pups <- s_pups %>%
+        filter(sitename %in% sites) %>%
+        select(sitename, Year, pupcount) %>%
+        rename(steller_pups = pupcount)
+        
+```
+
+Here's a graph of steller pup counts over time at five different rookeries.
+
+``` {r echo=FALSE, message=FALSE}
+pups %>%
+        ggplot(aes(Year, steller_pups)) + geom_line() + facet_wrap(~sitename) + labs(title = "Steller Pup Counts over Time at Five Alaskan Rookeries", y = "Steller Pup Count", caption = "Note: This graph shows Steller Sea Lion pup counts over time at five different rookeries in Alaska.\n When multiple count measurements were available, the mean count in each particular year and rookery was used.\n Data was sourced from the NOAA National Center for Environmental Information (NCEI) (Fritz et al, 2015)\n on counts conducted between 1961-06-22 to 2015-07-18.")
+```
+
+In the above figure, Steller Sea Lion pup counts decline precipitously in the Chowiet, Marmot, and Sugarloaf rookeries between 1980 and 2000. The Forrester Complex registered a gradual increase since 1960 and then fell to 0 after 2000. On the other hand, the Hazy rookery saw gradual increases since 1980. However, overall Steller Pup counts have declined significantly over time across these five rookeries.
+
+
+
+
+
+

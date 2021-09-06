@@ -1,0 +1,70 @@
+---
+title: "Warblers"
+author: "Benjamin Moscona"
+date: "9/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+Let's load required packages:
+```{r message=FALSE}
+library(tidyverse)
+library(readr)
+library(stringr)
+library(stargazer)
+```
+
+Let's read in the warblers dataset:
+```{r message=FALSE}
+bt_warblers <- read_csv("task_data/bt_warblers.csv")
+```
+
+Now, we are going to graph wing length vs birds mass, with point color indicating sex and faceted by bird age at capture.
+
+``` {r echo=FALSE, message=FALSE}
+# change -99.99s into NAs first and drop NAs in numeric columns
+bt <- bt_warblers %>% mutate(across(where(is.double), ~na_if(., -99.99)))
+
+bt %>%
+        ggplot(aes(wing_r, mass, color = sex)) + geom_point() + facet_wrap(~age_banded)
+```
+
+Next, we are going to graph tarsus length vs wing length, faceted by elevation and colored by sex:
+
+``` {r echo=FALSE, message=FALSE}
+bt %>%
+        ggplot(aes(wing_r, tarsus1, color = sex)) + geom_point() + facet_wrap(~elevation)
+```
+
+Next, we will graph mean mass by elevation as a barplot:
+``` {r echo=FALSE, message=FALSE}
+bt %>% group_by(elevation) %>%
+        drop_na(mass) %>%
+        summarize(mass = mean(mass)) %>%
+        ggplot(aes(elevation, mass)) + geom_bar(stat = "identity")
+
+```
+
+Next, we model bird mass as a function of sex, captured age, and wing_length. We might not want to include both wing length and another bodily feature of the bird in the same model because wing length probably contains some information about beak size and so on, but we can test for this. We are not including elevation since my bar graph showed very little variation in mean mass across elevations. 
+
+``` {r echo=FALSE, message=FALSE}
+bt_nona <- bt %>% drop_na()
+mod <- lm(mass ~ sex + bill_depth + wing_r, data = bt)
+lmtest::bptest(mod)
+stargazer(mod, type = "text", title = "warbler MLR")
+#estimating an fgls version
+wts <- 1/fitted(lm(abs(residuals(mod)) ~ fitted(mod)))^2
+mod2 <- lm(mass ~ sex + bill_depth + wing_r, data = bt, wts = weights)
+```
+Next time, I might want to use fixest::feols and cluster my standard errors by elevation since the sampling process is clustered and to account for heteroskedasticity. I might also want to investigate point 332, because it might be a high leverage point, potentially influencing the regression results.
+
+The model includes sex, bill depth, and right wing length. I did not include age at time of capture because some of the variation in mass this captures is already captured by wing length and bill depth. We can compare nested versions of the model with the F-statistic.  I included sex as a dummy variable because there might be sexual dimorphism in this species. The errors appear to be normally distributed. There is some heteroskedasticity present (larger residuals as mass increases). I also estimated a fGLS version of the model using weighted least squares to account for the structure of the heteroskedasticity. All variables are still significant and none of the coefficients change.
+
+Sex: we would expect male birds to be 1 gram lighter than female birds on average, all else being equal.
+Bill Depth: For every 1mm increase in bill cross section depth, we would expect an increase of 0.258g in mass.
+Wingspan: for every 1mm increase in wingspan (right), we would expect an increase of 0.073g in mass.
+All coefficients are significant at the 0.05 level.
+
